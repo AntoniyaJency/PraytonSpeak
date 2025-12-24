@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useConversation } from "@11labs/react";
+import { useConversation } from "@elevenlabs/react";
 import { useUser } from "@clerk/nextjs";
 
 import { Button } from "@/components/ui/button";
@@ -72,14 +72,45 @@ const VoiceChat = () => {
   }, [isLoggedIn]);
 
   const handleStartConversation = async () => {
+    // Clear any previous errors
+    setErrorMessage("");
+    
+    // Check if environment variable is set
+    const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
+    if (!agentId) {
+      setErrorMessage("Missing ElevenLabs Agent ID. Please set NEXT_PUBLIC_ELEVENLABS_AGENT_ID in your environment variables.");
+      console.error("❌ NEXT_PUBLIC_ELEVENLABS_AGENT_ID is not set");
+      return;
+    }
+
     try {
+      // Request microphone permission
       await navigator.mediaDevices.getUserMedia({ audio: true });
       setHasPermission(true);
+      
+      // Start the conversation session
       await conversation.startSession({
-        agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID!
+        agentId: agentId
       });
     } catch (error) {
-      setErrorMessage("Failed to start conversation or get mic access");
+      // Provide more specific error messages
+      let errorMsg = "Failed to start conversation";
+      
+      if (error instanceof Error) {
+        if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+          errorMsg = "Microphone access denied. Please allow microphone access in your browser settings.";
+        } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+          errorMsg = "No microphone found. Please connect a microphone and try again.";
+        } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+          errorMsg = "Microphone is already in use by another application.";
+        } else {
+          errorMsg = `Error: ${error.message || error.name}`;
+        }
+      } else if (typeof error === "string") {
+        errorMsg = error;
+      }
+      
+      setErrorMessage(errorMsg);
       console.error("Start error:", error);
     }
   };
