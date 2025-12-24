@@ -11,9 +11,7 @@ import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from "@/components/theme-provider"
 import { ModeToggle } from '@/components/ui/ModeToggle'
-import { Sidebar } from '@/components/ui/sidebar'
-import { SidebarProvider } from '@/components/ui/sidebar'
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 import { AppSidebar } from "@/components/app-sidebar"
 import Navbar from '@/components/Navbar'
 
