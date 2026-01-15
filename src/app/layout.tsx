@@ -53,36 +53,36 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             
-            <header className="flex justify-end items-center p-4 gap-4 h-16 mt-2">
-              <Navbar />
-              <ModeToggle />
-              <SignedOut>
-                <SignInButton>
-                  <button className="cursor-pointer bg-[#6c47ff] text-white rounded-full px-4 py h-12">
-                    Sign In
-                  </button>
-                </SignInButton>
-                <SignUpButton>
-                  <button className="bg-[#6c47ff] text-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
-                    Sign Up
-                  </button>
-                </SignUpButton>
-              </SignedOut>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-              
-            </header>
-            <SidebarProvider>
+            <SidebarProvider defaultOpen={false}>
               <AppSidebar />
               
-              <header className="flex justify-start items-center p-4 gap-4 h-16">
-                <SidebarTrigger />
-              </header>
-
-              
-            
-            {children}
+              <div className="flex-1">
+                <header className="flex justify-between items-center p-4 gap-4 h-16">
+                  <div className="flex items-center gap-4">
+                    <SidebarTrigger />
+                  </div>
+                  <Navbar />
+                  <div className="flex items-center gap-4">
+                    <ModeToggle />
+                    <SignedOut>
+                      <SignInButton>
+                        <button className="cursor-pointer bg-[#6c47ff] text-white rounded-full px-4 py h-12">
+                          Sign In
+                        </button>
+                      </SignInButton>
+                      <SignUpButton>
+                        <button className="bg-[#6c47ff] text-white rounded-full font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
+                          Sign Up
+                        </button>
+                      </SignUpButton>
+                    </SignedOut>
+                    <SignedIn>
+                      <UserButton />
+                    </SignedIn>
+                  </div>
+                </header>
+                {children}
+              </div>
             </SidebarProvider>
           </ThemeProvider>
         </body>
