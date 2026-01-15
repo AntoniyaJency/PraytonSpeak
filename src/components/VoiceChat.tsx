@@ -6,9 +6,12 @@ import { useUser } from "@clerk/nextjs";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { Mic, MicOff, Volume2, VolumeX, TrendingUp, Clock, AlertCircle } from "lucide-react";
 
 import { sendToMakeWebhook } from "@/lib/sendToMakeWebhook";
+import { FluencyAnalyzer } from "@/lib/fluencyAnalyzer";
+import { VoiceActivityDetector, VoiceActivityEvent } from "@/lib/voiceActivityDetector";
+import { RealtimeFluencyData, FluencySession } from "@/types/fluency";
 
 type VoiceMessage = {
   source: "user" | "ai";
@@ -27,14 +30,30 @@ const VoiceChat = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [userMessages, setUserMessages] = useState<string[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [fluencyData, setFluencyData] = useState<RealtimeFluencyData | null>(null);
+  const [showFluencyMetrics, setShowFluencyMetrics] = useState(false);
+  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+  const [currentVolume, setCurrentVolume] = useState(0);
+  
+  const fluencyAnalyzer = new FluencyAnalyzer();
+  const voiceDetector = new VoiceActivityDetector();
 
   const conversation = useConversation({
     onConnect: () => console.log("✅ Connected to ElevenLabs"),
     onDisconnect: () => console.log("❌ Disconnected"),
     onMessage: (message: VoiceMessage) => {
       console.log("Received message:", message);
-      if (message.source === "user") {
+      // Only track user messages when user is actually speaking
+      if (message.source === "user" && isUserSpeaking) {
         setUserMessages((prev) => [...prev, message.message]);
+        
+        // Track fluency for user messages only during actual speech
+        const timestamp = Date.now();
+        fluencyAnalyzer.addSpeechSegment(message.message, timestamp);
+        
+        // Update real-time fluency data
+        const realtimeData = fluencyAnalyzer.getRealtimeData();
+        setFluencyData(realtimeData);
       }
     },
     onError: (error: string | Error) => {
@@ -89,9 +108,36 @@ const VoiceChat = () => {
       setHasPermission(true);
       
       // Start the conversation session
+      fluencyAnalyzer.startSession();
+      
+      // Start voice activity detection
+      await voiceDetector.startDetection(
+        (event: VoiceActivityEvent) => {
+          setCurrentVolume(event.volume);
+          if (event.isSpeaking) {
+            setIsUserSpeaking(true);
+            // Add pause detection when speech continues
+            fluencyAnalyzer.addSpeechSegment('', event.timestamp);
+          }
+        },
+        () => {
+          console.log("User started speaking");
+          setIsUserSpeaking(true);
+        },
+        () => {
+          console.log("User stopped speaking");
+          setIsUserSpeaking(false);
+          // Update fluency data when speech ends
+          const realtimeData = fluencyAnalyzer.getRealtimeData();
+          setFluencyData(realtimeData);
+        }
+      );
+      
       await conversation.startSession({
         agentId: agentId
       });
+      
+      setShowFluencyMetrics(true);
     } catch (error) {
       // Provide more specific error messages
       let errorMsg = "Failed to start conversation";
@@ -118,10 +164,20 @@ const VoiceChat = () => {
   const handleEndConversation = async () => {
     try {
       await conversation.endSession();
+      
+      // Stop voice detection
+      voiceDetector.stopDetection();
+      setIsUserSpeaking(false);
+      setCurrentVolume(0);
 
       if (sessionId) {
-        await sendToMakeWebhook(userMessages, username, sessionId);
+        // Get fluency session data only if user actually spoke
+        const fluencySession = fluencyAnalyzer.getSession(sessionId, username);
+        
+        await sendToMakeWebhook(userMessages, username, sessionId, fluencySession);
         setUserMessages([]);
+        setFluencyData(null);
+        setShowFluencyMetrics(false);
         if (!isLoggedIn) localStorage.removeItem("temp_session_id");
       } else {
         console.error("❌ Session ID missing");
@@ -139,6 +195,19 @@ const VoiceChat = () => {
     } catch {
       setErrorMessage("Failed to change volume");
     }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-green-600";
+    if (score >= 60) return "text-yellow-600";
+    return "text-red-600";
+  };
+
+  const formatSpeakingTime = (ms: number) => {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -164,6 +233,91 @@ const VoiceChat = () => {
             <strong>Please sign in to save your session.</strong>
           </div>
         )}
+        {/* Fluency Metrics Display - Only show when user is actually speaking */}
+        {showFluencyMetrics && (
+          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-gray-700">Voice Activity</h4>
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${isUserSpeaking ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                <span className="text-xs text-gray-600">
+                  {isUserSpeaking ? 'Speaking' : 'Not Speaking'}
+                </span>
+              </div>
+            </div>
+            
+            {/* Volume Indicator */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-600">Volume Level</span>
+                <span className="text-gray-700">{Math.round(currentVolume * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-100"
+                  style={{ width: `${currentVolume * 100}%` }}
+                ></div>
+              </div>
+            </div>
+            
+            {/* Fluency Metrics - Only show when we have actual data */}
+            {fluencyData && fluencyData.speakingTime > 1000 && (
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-gray-700">Fluency Analytics</h4>
+                  <TrendingUp className="h-4 w-4 text-blue-600" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${getScoreColor(fluencyData.currentScore)}`}>
+                      {fluencyData.currentScore}
+                    </div>
+                    <div className="text-xs text-gray-600">Fluency Score</div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {fluencyData.currentWPM}
+                    </div>
+                    <div className="text-xs text-gray-600">Words/Min</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-gray-500" />
+                    <span className="text-gray-700">
+                      {formatSpeakingTime(fluencyData.speakingTime)}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {fluencyData.pauseIndicator && (
+                      <div className="flex items-center space-x-1 text-yellow-600">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-xs">Pause</span>
+                      </div>
+                    )}
+                    {fluencyData.fillerDetected && (
+                      <div className="flex items-center space-x-1 text-orange-600">
+                        <AlertCircle className="h-4 w-4" />
+                        <span className="text-xs">Filler</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {!fluencyData && (
+              <div className="text-center text-sm text-gray-500 py-2">
+                Start speaking to see fluency metrics...
+              </div>
+            )}
+          </div>
+        )}
+        
         <div className="space-y-4">
           <div className="flex justify-center">
             {status === "connected" ? (

@@ -23,6 +23,7 @@ export default function Navbar() {
       {/* Links */}
       <nav className="flex flex-wrap gap-3 text-sm sm:text-base font-medium justify-center">
         <Link href="/" className="hover:underline whitespace-nowrap">Home</Link>
+        <Link href="/analytics" className="hover:underline whitespace-nowrap">Analytics</Link>
         <Link href="/about" className="hover:underline whitespace-nowrap">About</Link>
         <Link href="/contact" className="hover:underline whitespace-nowrap">Contact</Link>
         <Link href="/pricing" className="hover:underline whitespace-nowrap">Pricing</Link>

@@ -1,7 +1,10 @@
+import { FluencySession } from '@/types/fluency';
+
 export async function sendToMakeWebhook(
   userMessages: string[],
   user: string,
-  sessionId: string
+  sessionId: string,
+  fluencySession?: FluencySession
 ) {
   try {
     const response = await fetch("https://hook.eu2.make.com/s0w602blkyce03d6hnmcv8ebr9qvyf6f", {
@@ -13,6 +16,7 @@ export async function sendToMakeWebhook(
         user,
         sessionId,
         userMessages,
+        fluencySession,
         timestamp: new Date().toISOString()
       })
     });
