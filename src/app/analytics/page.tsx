@@ -153,10 +153,11 @@ export default function AnalyticsPage() {
         
         {/* D3 Visualizations */}
         <div className="mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Visual Analytics</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-6">Visual Analytics</h2>
           <D3FluencyCharts
             sessions={sessions}
             analytics={analytics}
+            isPremium={false} // Mock premium status - in real app, this would come from user subscription
           />
         </div>
       </div>

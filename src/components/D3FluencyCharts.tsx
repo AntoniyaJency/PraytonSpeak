@@ -3,13 +3,21 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { FluencySession, FluencyAnalytics } from "@/types/fluency";
+import { useTheme } from "next-themes";
+import { Crown, Lock } from "lucide-react";
 
 interface D3FluencyChartsProps {
   sessions: FluencySession[];
   analytics: FluencyAnalytics;
+  isPremium?: boolean;
 }
 
-const D3FluencyCharts: React.FC<D3FluencyChartsProps> = ({ sessions, analytics }) => {
+const D3FluencyCharts: React.FC<D3FluencyChartsProps> = ({ 
+  sessions, 
+  analytics, 
+  isPremium = false 
+}) => {
+  const { theme } = useTheme();
   const scoreChartRef = useRef<SVGSVGElement>(null);
   const wpmChartRef = useRef<SVGSVGElement>(null);
   const progressChartRef = useRef<SVGSVGElement>(null);
@@ -49,6 +57,13 @@ const D3FluencyCharts: React.FC<D3FluencyChartsProps> = ({ sessions, analytics }
       score: session.overallScore,
       date: new Date(session.startTime)
     }));
+
+    // Theme-aware colors
+    const isDark = theme === 'dark';
+    const lineColor = isDark ? "#10b981" : "#059669";
+    const gradientColor = isDark ? "#065f46" : "#047857";
+    const gridColor = isDark ? "#374151" : "#e5e7eb";
+    const textColor = isDark ? "#d1d5db" : "#6b7280";
 
     // Scales
     const xScale = d3
@@ -91,13 +106,13 @@ const D3FluencyCharts: React.FC<D3FluencyChartsProps> = ({ sessions, analytics }
     gradient
       .append("stop")
       .attr("offset", "0%")
-      .attr("stop-color", "#10b981")
+      .attr("stop-color", gradientColor)
       .attr("stop-opacity", 0.1);
 
     gradient
       .append("stop")
       .attr("offset", "100%")
-      .attr("stop-color", "#10b981")
+      .attr("stop-color", lineColor)
       .attr("stop-opacity", 0.6);
 
     // Area
@@ -112,29 +127,33 @@ const D3FluencyCharts: React.FC<D3FluencyChartsProps> = ({ sessions, analytics }
       .attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(xScale).tickSize(-height).tickFormat(() => ""))
       .style("stroke-dasharray", "3,3")
-      .style("opacity", 0.3);
+      .style("opacity", 0.3)
+      .style("stroke", gridColor);
 
     g.append("g")
       .attr("class", "grid")
       .call(d3.axisLeft(yScale).tickSize(-width).tickFormat(() => ""))
       .style("stroke-dasharray", "3,3")
-      .style("opacity", 0.3);
+      .style("opacity", 0.3)
+      .style("stroke", gridColor);
 
     // Axes
     g.append("g")
       .attr("transform", `translate(0,${height})`)
       .call(d3.axisBottom(xScale).ticks(5))
-      .style("font-size", "12px");
+      .style("font-size", "12px")
+      .style("color", textColor);
 
     g.append("g")
       .call(d3.axisLeft(yScale).ticks(5))
-      .style("font-size", "12px");
+      .style("font-size", "12px")
+      .style("color", textColor);
 
     // Line
     const path = g.append("path")
       .datum(data)
       .attr("fill", "none")
-      .attr("stroke", "#10b981")
+      .attr("stroke", lineColor)
       .attr("stroke-width", 3)
       .attr("d", line);
 
@@ -157,8 +176,8 @@ const D3FluencyCharts: React.FC<D3FluencyChartsProps> = ({ sessions, analytics }
       .attr("cx", d => xScale(d.index))
       .attr("cy", d => yScale(d.score))
       .attr("r", 0)
-      .attr("fill", "#10b981")
-      .attr("stroke", "white")
+      .attr("fill", lineColor)
+      .attr("stroke", isDark ? "#1f2937" : "#ffffff")
       .attr("stroke-width", 2)
       .transition()
       .delay((d, i) => i * 100)
@@ -173,17 +192,17 @@ const D3FluencyCharts: React.FC<D3FluencyChartsProps> = ({ sessions, analytics }
       .attr("dy", "1em")
       .style("text-anchor", "middle")
       .style("font-size", "14px")
-      .style("fill", "#666")
+      .style("fill", textColor)
       .text("Fluency Score");
 
     g.append("text")
       .attr("transform", `translate(${width / 2}, ${height + margin.bottom})`)
       .style("text-anchor", "middle")
       .style("font-size", "14px")
-      .style("fill", "#666")
+      .style("fill", textColor)
       .text("Recent Sessions");
 
-  }, [sessions, dimensions]);
+  }, [sessions, dimensions, theme]);
 
   // WPM Chart
   useEffect(() => {
@@ -371,24 +390,77 @@ const D3FluencyCharts: React.FC<D3FluencyChartsProps> = ({ sessions, analytics }
   return (
     <div className="space-y-8">
       {/* Score Trend */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4">Fluency Score Trend</h3>
+      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border dark:border-gray-800 relative">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-foreground">Fluency Score Trend</h3>
+          {!isPremium && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Lock className="h-4 w-4" />
+              <span>Premium</span>
+            </div>
+          )}
+        </div>
         <svg ref={scoreChartRef}></svg>
       </div>
 
       {/* WPM Chart */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4">Words Per Minute</h3>
+      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border dark:border-gray-800 relative">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-foreground">Words Per Minute</h3>
+          {!isPremium && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Lock className="h-4 w-4" />
+              <span>Premium</span>
+            </div>
+          )}
+        </div>
         <svg ref={wpmChartRef}></svg>
       </div>
 
       {/* Radar Chart */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border">
-        <h3 className="text-lg font-semibold mb-4">Overall Performance</h3>
+      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg shadow-sm border dark:border-gray-800 relative">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-foreground">Overall Performance</h3>
+          {!isPremium && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Lock className="h-4 w-4" />
+              <span>Premium</span>
+            </div>
+          )}
+        </div>
         <div className="flex justify-center">
           <svg ref={progressChartRef}></svg>
         </div>
       </div>
+
+      {/* Premium Upgrade CTA for Charts */}
+      {!isPremium && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950 dark:to-blue-950 p-6 rounded-lg border-2 border-dashed text-center">
+          <Crown className="h-8 w-8 mx-auto text-purple-600 mb-4" />
+          <h3 className="text-xl font-bold text-foreground mb-2">Unlock Advanced Analytics</h3>
+          <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+            Get detailed charts, custom date ranges, advanced insights, and export your data to multiple formats
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-green-100 dark:bg-green-900 rounded">
+                <span className="text-green-800 dark:text-green-200">📊</span>
+              </div>
+              <span>Custom Date Ranges</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded">
+                <span className="text-blue-800 dark:text-blue-200">📈</span>
+              </div>
+              <span>Advanced Insights</span>
+            </div>
+          </div>
+          <button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-700 hover:to-blue-700 transition-colors">
+            <Crown className="h-4 w-4 mr-2" />
+            Upgrade for Full Access
+          </button>
+        </div>
+      )}
     </div>
   );
 };
