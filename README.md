@@ -1,6 +1,6 @@
 # Prayton Speak
 
-![Project Screenshot](https://raw.githubusercontent.com/AntoniyaJency/PraytonSpeak/main/screen shot Prayton.png)
+![Project Screenshot](https://raw.githubusercontent.com/AntoniyaJency/PraytonSpeak/master/screen shot Prayton.png)
 
 
 
